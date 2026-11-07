@@ -39,6 +39,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Verify headless Chrome
+        run: |
+          python3 -c "from make_og_image import find_chrome; path = find_chrome(); assert path, 'Chrome/Chromium not found'; print('Chrome:', path)"
+
+      - name: Install card font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-liberation
+
       - name: Scrape romsportugues.com
         run: >-
           python3 scrape_roms.py

@@ -121,7 +121,9 @@ never runs on a schedule or on push.
    - deploy the freshly built site to GitHub Pages.
 
 It uses the built-in `GITHUB_TOKEN` (`contents: write`, `pages: write`,
-`id-token: write`) — no PAT is required. Because the bot push is made with
+`id-token: write`) — no PAT is required. `ubuntu-latest` already ships Google
+Chrome and Chromium; the workflow verifies the browser is detectable and
+installs `fonts-liberation` so the social card renders consistently in CI. Because the bot push is made with
 `GITHUB_TOKEN`, it does not trigger the normal `pages.yml` workflow; the
 refresh workflow deploys its own artifact directly.
 
