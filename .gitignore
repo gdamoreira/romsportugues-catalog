@@ -1,0 +1,17 @@
+# Generated site — built by GitHub Actions and published as a Pages artifact
+site/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local test output
+test*.csv
+page*.csv
+*.tmp
