@@ -9,6 +9,11 @@ A static, read-only catalogue of the Portuguese-translated ROMs indexed by
 
 **Live site:** <https://gdamoreira.github.io/romsportugues-catalog/>
 
+> **First deployment:** enable GitHub Pages once in
+> [Settings → Pages](https://github.com/gdamoreira/romsportugues-catalog/settings/pages)
+> with **Source: GitHub Actions**. Until that setting is on, the build job
+> succeeds but the deploy job stops at “Configure GitHub Pages”.
+
 ---
 
 ## Unofficial mirror — all data belongs to the original website
