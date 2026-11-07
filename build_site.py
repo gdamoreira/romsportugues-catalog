@@ -8,7 +8,7 @@ Outputs a ready-to-publish folder:
       index.html          all cards pre-rendered (works without JS)
       assets/styles.css
       assets/app.js       search, filters, sort, theme toggle
-      assets/og-image.jpg 1200x630 social preview card
+      assets/og-image.png 1200x630 social preview card
       assets/icon-*.png   manifest icons
       favicon.svg
       apple-touch-icon.png
@@ -242,7 +242,7 @@ def build_page(
 
     base_url = (base_url or "").rstrip("/")
     page_url = f"{base_url}/"
-    image_url = f"{base_url}/assets/og-image.jpg"
+    image_url = f"{base_url}/assets/og-image.png"
 
     title = f"ROMs em Português — Catálogo de {br_number(total)} ROMs traduzidas"
     description = (
@@ -316,7 +316,7 @@ def build_page(
 <meta property="og:description" content="{esc(description)}">
 <meta property="og:image" content="{esc(image_url)}">
 <meta property="og:image:secure_url" content="{esc(image_url)}">
-<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="{esc(image_alt)}">
@@ -490,7 +490,7 @@ def main(argv=None) -> int:
     for name in (
         "styles.css",
         "app.js",
-        "og-image.jpg",
+        "og-image.png",
         "favicon-32.png",
         "icon-192.png",
         "icon-512.png",

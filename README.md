@@ -1,18 +1,19 @@
 # romsportugues-catalog
 
 [![Deploy to GitHub Pages](https://github.com/gdamoreira/romsportugues-catalog/actions/workflows/pages.yml/badge.svg)](https://github.com/gdamoreira/romsportugues-catalog/actions/workflows/pages.yml)
-[![Live catalogue](https://img.shields.io/badge/live-catalogue-7c5cff)](https://gdamoreira.github.io/romsportugues-catalog/)
+[![Live catalogue](https://img.shields.io/badge/live-catalogue-7c5cff)](https://damoreira.com.br/romsportugues-catalog/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+<p align="center">
+  <a href="https://damoreira.com.br/romsportugues-catalog/">
+    <img src="site_src/og-image.png" alt="Prévia do catálogo ROMs em Português" width="100%">
+  </a>
+</p>
 
 A static, read-only catalogue of the Portuguese-translated ROMs indexed by
 [romsportugues.com](https://romsportugues.com/).
 
-**Live site:** <https://gdamoreira.github.io/romsportugues-catalog/>
-
-> **First deployment:** enable GitHub Pages once in
-> [Settings → Pages](https://github.com/gdamoreira/romsportugues-catalog/settings/pages)
-> with **Source: GitHub Actions**. Until that setting is on, the build job
-> succeeds but the deploy job stops at “Configure GitHub Pages”.
+**Live site:** <https://damoreira.com.br/romsportugues-catalog/>
 
 ---
 
@@ -50,7 +51,7 @@ year, developer, translator, players, genres, and download links.
 - Works without JavaScript: every card is pre-rendered in the HTML
 
 **Stack:** Python 3 (standard library only) + vanilla HTML/CSS/JS + GitHub
-Actions.
+Actions. The social card is rendered with headless Chrome.
 
 ## Repository layout
 
@@ -58,12 +59,13 @@ Actions.
 .
 ├── .github/workflows/pages.yml   # build + deploy to GitHub Pages
 ├── build_site.py                 # roms.csv -> site/
+├── make_og_image.py              # roms.csv -> 1200x630 social card
 ├── scrape_roms.py                # romsportugues.com -> roms.csv
 ├── roms.csv                      # mirrored catalogue data (UTF-8 with BOM)
 ├── site_src/                     # source assets used by the generator
 │   ├── app.js                    # search, filters, sort, theme
 │   ├── styles.css                # layout and dark/light theme
-│   ├── og-image.jpg              # 1200x630 social preview card
+│   ├── og-image.png              # 1200x630 social preview card
 │   ├── favicon.svg
 │   ├── favicon-32.png
 │   ├── apple-touch-icon.png
@@ -113,9 +115,23 @@ python3 scrape_roms.py --limit 12 -o test.csv
 python3 scrape_roms.py --start-page 5 --end-page 5 -o page5.csv
 ```
 
-The 1200×630 social card (`site_src/og-image.jpg`) is a static asset. If the
-catalogue totals change, replace it with an updated 1200×630 JPEG/PNG. The
-icons in `site_src/` can be regenerated from the same gradient/RP brand.
+### Social card
+
+`make_og_image.py` regenerates the 1200×630 social card from the current CSV.
+It reads the live totals (ROMs, consoles, year range, download links), picks
+four covers, and falls back to branded placeholders if a cover is unavailable.
+Headless Chrome/Chromium is required; there are no Python dependencies.
+
+```bash
+# After refreshing roms.csv
+python3 make_og_image.py
+
+# Custom paths
+python3 make_og_image.py --csv roms.csv --out site_src/og-image.png
+```
+
+Set `CHROME_PATH` (or pass `--chrome`) if Chrome is not in a standard location.
+Then rebuild the site with `build_site.py`.
 
 
 ### CSV schema
@@ -136,17 +152,18 @@ runs on every push to `main` (and manually via **workflow_dispatch**):
 
 1. Checks out the repository.
 2. Sets up Python 3.12.
-3. Runs `python3 build_site.py --csv roms.csv --out site`.
+3. Runs `python3 build_site.py --csv roms.csv --out site --base-url …`.
 4. Uploads `site/` as the Pages artifact.
 5. Deploys it to the `github-pages` environment.
 
-**One-time setup:** in the repository, go to **Settings → Pages** and set
-**Source** to **GitHub Actions**. If the first run fails at the deploy step,
-enable Pages as described and re-run the workflow.
+Pages is already configured to deploy from GitHub Actions. For a fresh fork,
+enable **Settings → Pages → Source: GitHub Actions** once.
 
-The site will be published at:
+The site is published at:
 
-**<https://gdamoreira.github.io/romsportugues-catalog/>**
+**<https://damoreira.com.br/romsportugues-catalog/>**
+
+GitHub Pages fallback: <https://gdamoreira.github.io/romsportugues-catalog/>
 
 All asset paths are relative, so the site works correctly under the
 `/romsportugues-catalog/` base path.
