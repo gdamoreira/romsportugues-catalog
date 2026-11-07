@@ -19,6 +19,10 @@ on:
         default: false
         type: boolean
 
+  schedule:
+    # Mondays at 12:00 UTC = 09:00 America/Sao_Paulo
+    - cron: "0 12 * * 1"
+
 permissions:
   contents: write
   pages: write
@@ -33,6 +37,9 @@ jobs:
     name: Scrape, rebuild and publish
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      WORKERS: ${{ inputs.workers || '8' }}
+      FORCE: ${{ inputs.force || 'false' }}
     outputs:
       changed: ${{ steps.compare.outputs.changed || 'false' }}
     steps:
@@ -49,7 +56,7 @@ jobs:
       - name: Check for new data
         id: precheck
         run: |
-          if [ "${{ inputs.force }}" = "true" ]; then
+          if [ "$FORCE" = "true" ]; then
             echo "new_data=true" >> "$GITHUB_OUTPUT"
             echo "### Forced refresh" >> "$GITHUB_STEP_SUMMARY"
             echo "Force input enabled: skipping the public count check."
@@ -76,7 +83,7 @@ jobs:
         if: steps.precheck.outputs.new_data == 'true'
         run: >-
           python3 scrape_roms.py
-          --workers ${{ inputs.workers }}
+          --workers "$WORKERS"
           --output roms.csv
 
       - name: Compare catalogue

@@ -104,26 +104,41 @@ when debugging.
 
 ## Refresh the catalogue
 
-### From GitHub Actions (manual only)
+### From GitHub Actions (manual + weekly)
 
 The workflow
 [`.github/workflows/refresh-catalog.yml`](.github/workflows/refresh-catalog.yml)
-does the whole refresh in CI. Its only trigger is **workflow_dispatch** — it
-never runs on a schedule or on push.
+does the whole refresh in CI.
+
+It runs:
+
+- **weekly**, on Mondays at **12:00 UTC** (= 09:00 in `America/Sao_Paulo`);
+- **manually**, via **workflow_dispatch**.
+
+Scheduled runs use 8 workers and the normal preflight. Because the preflight
+stops when the public count matches, most weekly runs are just a single HTTP
+check with no scraping. Change the `cron` line in the workflow if you want a
+different day/time (GitHub cron is always UTC). Scheduled workflows run from
+the default branch and may be delayed during busy periods.
+
+To run a refresh manually:
 
 1. Open **Actions → Refresh catalogue → Run workflow**.
 2. Pick the number of parallel scraping workers.
-3. The workflow will:
-   - count the public `todos-jogos` list and compare it with `roms.csv`; if
-     the counts match, stop immediately with **No new data** and scrape nothing,
-   - otherwise scrape the full catalogue,
-   - compare the new `roms.csv` **byte-for-byte** with the previous one and
-     stop with **No new data** if nothing changed (build and deploy are skipped),
-   - validate the CSV (fails on any failed ROM page or fewer than 1,000 rows),
-   - regenerate `site_src/og-image.png`,
-   - build and minify the site,
-   - commit `roms.csv` and `site_src/og-image.png` when they change,
-   - deploy the freshly built site to GitHub Pages.
+3. Optional: enable **force** to skip the count preflight and re-scrape anyway.
+
+The workflow will:
+
+- count the public `todos-jogos` list and compare it with `roms.csv`; if the
+  counts match, stop immediately with **No new data** and scrape nothing;
+- otherwise scrape the full catalogue;
+- compare the new `roms.csv` **byte-for-byte** with the previous one and stop
+  with **No new data** if nothing changed (build and deploy are skipped);
+- validate the CSV (fails on any failed ROM page or fewer than 1,000 rows);
+- regenerate `site_src/og-image.png`;
+- build and minify the site;
+- commit `roms.csv` and `site_src/og-image.png` when they change;
+- deploy the freshly built site to GitHub Pages.
 
 The preflight check mirrors the browser expression
 `document.querySelectorAll('.letter-section li').length`. Use the **force**
