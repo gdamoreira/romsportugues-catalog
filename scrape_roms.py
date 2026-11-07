@@ -434,7 +434,10 @@ def write_csv(rows, output_path: str) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     temp_path = output_path + ".tmp"
     with open(temp_path, "w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=columns, restval="")
+        # LF endings keep roms.csv byte-stable across checkouts and refreshes.
+        writer = csv.DictWriter(
+            handle, fieldnames=columns, restval="", lineterminator="\n"
+        )
         writer.writeheader()
         for row in rows:
             record = {

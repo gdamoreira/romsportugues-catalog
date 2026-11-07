@@ -62,7 +62,7 @@ Actions. The social card is rendered with headless Chrome.
 ├── build_site.py                 # roms.csv -> site/
 ├── make_og_image.py              # roms.csv -> 1200x630 social card
 ├── scrape_roms.py                # romsportugues.com -> roms.csv
-├── roms.csv                      # mirrored catalogue data (UTF-8 with BOM)
+├── roms.csv                      # mirrored catalogue data (UTF-8 BOM, LF)
 ├── site_src/                     # source assets used by the generator
 │   ├── app.js                    # search, filters, sort, theme
 │   ├── styles.css                # layout and dark/light theme
@@ -114,18 +114,24 @@ never runs on a schedule or on push.
 2. Pick the number of parallel scraping workers.
 3. The workflow will:
    - scrape the full catalogue,
+   - compare the new `roms.csv` **byte-for-byte** with the previous one and
+     stop with **No new data** if nothing changed (build and deploy are skipped),
    - validate the CSV (fails on any failed ROM page or fewer than 1,000 rows),
    - regenerate `site_src/og-image.png`,
    - build and minify the site,
    - commit `roms.csv` and `site_src/og-image.png` when they change,
    - deploy the freshly built site to GitHub Pages.
 
+The comparison is byte-for-byte, so `scrape_roms.py` writes LF line endings
+(matching `.gitattributes`) instead of the platform default CRLF.
+
 It uses the built-in `GITHUB_TOKEN` (`contents: write`, `pages: write`,
 `id-token: write`) — no PAT is required. `ubuntu-latest` already ships Google
 Chrome and Chromium; the workflow verifies the browser is detectable and
-installs `fonts-liberation` so the social card renders consistently in CI. Because the bot push is made with
-`GITHUB_TOKEN`, it does not trigger the normal `pages.yml` workflow; the
-refresh workflow deploys its own artifact directly.
+installs `fonts-liberation` so the social card renders consistently in CI.
+Because the bot push is made with `GITHUB_TOKEN`, it does not trigger the
+normal `pages.yml` workflow; the refresh workflow deploys its own artifact
+directly.
 
 ### From your machine
 

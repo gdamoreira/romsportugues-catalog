@@ -28,6 +28,8 @@ jobs:
     name: Scrape, rebuild and publish
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      changed: ${{ steps.compare.outputs.changed }}
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -48,13 +50,36 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq fonts-liberation
 
+      - name: Save previous catalogue
+        run: cp roms.csv "$RUNNER_TEMP/previous-roms.csv"
+
       - name: Scrape romsportugues.com
         run: >-
           python3 scrape_roms.py
           --workers ${{ inputs.workers }}
           --output roms.csv
 
+      - name: Compare catalogue
+        id: compare
+        run: |
+          if [ ! -f "$RUNNER_TEMP/previous-roms.csv" ]; then
+            echo "Previous catalogue missing; treating as changed."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if cmp -s "$RUNNER_TEMP/previous-roms.csv" roms.csv; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "### No new data" >> "$GITHUB_STEP_SUMMARY"
+            echo "roms.csv is byte-identical to the previous catalogue. Nothing to build or deploy." >> "$GITHUB_STEP_SUMMARY"
+            echo "No new data."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "roms.csv changed; continuing with validation, build and deploy."
+          fi
+
       - name: Validate catalogue
+        if: steps.compare.outputs.changed == 'true'
         run: |
           python3 <<'PY'
           import csv
@@ -74,12 +99,14 @@ jobs:
           PY
 
       - name: Generate social card
+        if: steps.compare.outputs.changed == 'true'
         run: >-
           python3 make_og_image.py
           --csv roms.csv
           --out site_src/og-image.png
 
       - name: Build static site
+        if: steps.compare.outputs.changed == 'true'
         run: >-
           python3 build_site.py
           --csv roms.csv
@@ -87,11 +114,13 @@ jobs:
           --base-url https://damoreira.com.br/romsportugues-catalog
 
       - name: Upload Pages artifact
+        if: steps.compare.outputs.changed == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
       - name: Commit refreshed data
+        if: steps.compare.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -105,6 +134,7 @@ jobs:
           fi
 
       - name: Write summary
+        if: steps.compare.outputs.changed == 'true'
         run: |
           ROWS=$(python3 -c "import csv; print(sum(1 for _ in csv.DictReader(open('roms.csv', encoding='utf-8-sig'))))")
           echo "### Catalogue refreshed" >> "$GITHUB_STEP_SUMMARY"
@@ -114,6 +144,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: refresh
+    if: needs.refresh.outputs.changed == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
