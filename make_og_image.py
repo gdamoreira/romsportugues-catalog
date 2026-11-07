@@ -58,7 +58,7 @@ TEMPLATE = r"""<!doctype html>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 1200px; height: 630px; overflow: hidden; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: Arial, "Liberation Sans", "Helvetica Neue", sans-serif;
     background:
       radial-gradient(720px 520px at 6% -12%, rgba(124, 92, 255, .34), transparent 62%),
       radial-gradient(700px 520px at 102% 8%, rgba(34, 211, 238, .18), transparent 60%),

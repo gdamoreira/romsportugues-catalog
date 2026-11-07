@@ -57,7 +57,8 @@ Actions. The social card is rendered with headless Chrome.
 
 ```text
 .
-├── .github/workflows/pages.yml   # build + deploy to GitHub Pages
+├── .github/workflows/pages.yml             # build + deploy to GitHub Pages
+├── .github/workflows/refresh-catalog.yml   # manual scrape + rebuild + deploy
 ├── build_site.py                 # roms.csv -> site/
 ├── make_og_image.py              # roms.csv -> 1200x630 social card
 ├── scrape_roms.py                # romsportugues.com -> roms.csv
@@ -101,6 +102,30 @@ The build writes `site/` and then runs a **minification post-phase** over
 when debugging.
 
 ## Refresh the catalogue
+
+### From GitHub Actions (manual only)
+
+The workflow
+[`.github/workflows/refresh-catalog.yml`](.github/workflows/refresh-catalog.yml)
+does the whole refresh in CI. Its only trigger is **workflow_dispatch** — it
+never runs on a schedule or on push.
+
+1. Open **Actions → Refresh catalogue → Run workflow**.
+2. Pick the number of parallel scraping workers.
+3. The workflow will:
+   - scrape the full catalogue,
+   - validate the CSV (fails on any failed ROM page or fewer than 1,000 rows),
+   - regenerate `site_src/og-image.png`,
+   - build and minify the site,
+   - commit `roms.csv` and `site_src/og-image.png` when they change,
+   - deploy the freshly built site to GitHub Pages.
+
+It uses the built-in `GITHUB_TOKEN` (`contents: write`, `pages: write`,
+`id-token: write`) — no PAT is required. Because the bot push is made with
+`GITHUB_TOKEN`, it does not trigger the normal `pages.yml` workflow; the
+refresh workflow deploys its own artifact directly.
+
+### From your machine
 
 The scraper is polite by default: 8 workers, a global request delay, retries
 on 429/5xx, and per-ROM error reporting.

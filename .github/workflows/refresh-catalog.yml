@@ -1,0 +1,115 @@
+name: Refresh catalogue
+
+on:
+  workflow_dispatch:
+    inputs:
+      workers:
+        description: "Parallel scraping workers"
+        required: true
+        default: "8"
+        type: choice
+        options:
+          - "4"
+          - "8"
+          - "12"
+          - "16"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Scrape, rebuild and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Scrape romsportugues.com
+        run: >-
+          python3 scrape_roms.py
+          --workers ${{ inputs.workers }}
+          --output roms.csv
+
+      - name: Validate catalogue
+        run: |
+          python3 <<'PY'
+          import csv
+          import sys
+
+          rows = list(csv.DictReader(open("roms.csv", encoding="utf-8-sig")))
+          errors = [row for row in rows if (row.get("erro") or "").strip()]
+
+          if errors:
+              print(f"{len(errors)} ROM pages failed; refusing to publish", file=sys.stderr)
+              sys.exit(1)
+          if len(rows) < 1000:
+              print(f"Only {len(rows)} rows; refusing to publish", file=sys.stderr)
+              sys.exit(1)
+
+          print(f"Validated {len(rows)} rows")
+          PY
+
+      - name: Generate social card
+        run: >-
+          python3 make_og_image.py
+          --csv roms.csv
+          --out site_src/og-image.png
+
+      - name: Build static site
+        run: >-
+          python3 build_site.py
+          --csv roms.csv
+          --out site
+          --base-url https://damoreira.com.br/romsportugues-catalog
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Commit refreshed data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add roms.csv site_src/og-image.png
+          if git diff --cached --quiet; then
+            echo "No catalogue changes to commit."
+          else
+            git commit -m "chore: refresh catalogue $(date -u +%Y-%m-%d)"
+            git push origin HEAD:main
+          fi
+
+      - name: Write summary
+        run: |
+          ROWS=$(python3 -c "import csv; print(sum(1 for _ in csv.DictReader(open('roms.csv', encoding='utf-8-sig'))))")
+          echo "### Catalogue refreshed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ROMs: $ROWS" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Live: https://damoreira.com.br/romsportugues-catalog/" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: refresh
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
