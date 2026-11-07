@@ -95,6 +95,11 @@ python3 -m http.server 8000 --directory site
 Open <http://localhost:8000>. You can also open `site/index.html` directly
 in a browser.
 
+The build writes `site/` and then runs a **minification post-phase** over
+`index.html`, `assets/styles.css`, and `assets/app.js`. Source assets in
+`site_src/` stay readable. Pass `--no-minify` to keep the output unminified
+when debugging.
+
 ## Refresh the catalogue
 
 The scraper is polite by default: 8 workers, a global request delay, retries
@@ -152,7 +157,8 @@ runs on every push to `main` (and manually via **workflow_dispatch**):
 
 1. Checks out the repository.
 2. Sets up Python 3.12.
-3. Runs `python3 build_site.py --csv roms.csv --out site --base-url …`.
+3. Runs `python3 build_site.py --csv roms.csv --out site --base-url …`,
+   including the minification post-phase.
 4. Uploads `site/` as the Pages artifact.
 5. Deploys it to the `github-pages` environment.
 

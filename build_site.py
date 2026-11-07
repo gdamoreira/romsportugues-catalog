@@ -453,11 +453,283 @@ def build_page(
 """
 
 
+BLOCK_TAGS = {
+    "html", "head", "body", "main", "header", "footer", "section", "nav",
+    "article", "aside", "div", "p", "h1", "h2", "h3", "h4", "h5", "h6",
+    "ul", "ol", "li", "dl", "dt", "dd", "table", "thead", "tbody", "tfoot",
+    "tr", "td", "th", "form", "fieldset", "legend", "figure", "figcaption",
+    "blockquote", "hr", "script", "style", "link", "meta", "title", "br",
+    "option", "optgroup", "select", "svg", "symbol", "defs", "use",
+}
+
+
+def _tag_name(token: str) -> str:
+    match = re.match(r"</?([a-zA-Z0-9-]+)", token)
+    return match.group(1).lower() if match else ""
+
+
+def compact_tag(tag: str) -> str:
+    """Collapse whitespace inside a tag without touching quoted values."""
+    result = []
+    quote = None
+    pending_space = False
+    for char in tag:
+        if quote:
+            result.append(char)
+            if char == quote:
+                quote = None
+            continue
+        if char in "\"'":
+            quote = char
+            result.append(char)
+            pending_space = False
+            continue
+        if char.isspace():
+            pending_space = True
+            continue
+        if pending_space and result and result[-1] != "<":
+            result.append(" ")
+        result.append(char)
+        pending_space = False
+    return "".join(result)
+
+
+def minify_html(source: str) -> str:
+    """Conservative HTML minifier.
+
+    Removes comments, collapses indentation/tag whitespace, and minifies
+    inline scripts/styles while preserving raw blocks (pre/textarea).
+    """
+    raw_blocks = []
+
+    def protect(match):
+        block = match.group(0)
+        tag = match.group(1).lower()
+        opening_end = block.find(">") + 1
+        closing_start = block.rfind("<")
+        opening = block[:opening_end]
+        closing = block[closing_start:]
+        inner = block[opening_end:closing_start]
+        try:
+            if tag == "script":
+                if "application/ld+json" not in opening.lower() and not re.search(
+                    r"\bsrc\s*=", opening, re.I
+                ):
+                    block = opening + minify_js(inner) + closing
+            elif tag == "style":
+                block = opening + minify_css(inner) + closing
+        except Exception:
+            block = match.group(0)
+
+        key = f"\x00RAW{len(raw_blocks)}\x00"
+        raw_blocks.append(block)
+        return key
+
+    text = re.sub(
+        r"<(script|style|pre|textarea)\b[^>]*>.*?</\1>",
+        protect,
+        source,
+        flags=re.I | re.S,
+    )
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
+
+    parts = re.split(r"(<[^>]+>)", text)
+    output = []
+    for index, part in enumerate(parts):
+        if not part:
+            continue
+        if part.startswith("<") and part.endswith(">"):
+            output.append(compact_tag(part))
+            continue
+
+        collapsed = re.sub(r"[ \t\r\n\f]+", " ", part)
+        if collapsed.strip() == "":
+            previous = next(
+                (p for p in reversed(parts[:index]) if p.startswith("<")), ""
+            )
+            following = next(
+                (p for p in parts[index + 1 :] if p.startswith("<")), ""
+            )
+            if _tag_name(previous) in BLOCK_TAGS and _tag_name(following) in BLOCK_TAGS:
+                continue
+            output.append(" ")
+        else:
+            output.append(collapsed)
+
+    text = "".join(output).strip()
+    for index, block in enumerate(raw_blocks):
+        text = text.replace(f"\x00RAW{index}\x00", block)
+    return text
+
+
+def minify_css(source: str) -> str:
+    css = re.sub(r"/\*.*?\*/", "", source, flags=re.S)
+    css = re.sub(r"\s+", " ", css)
+    css = re.sub(r"\s*([{}:;,>+~])\s*", r"\1", css)
+    css = css.replace(";}", "}")
+    return css.strip()
+
+
+def minify_js(source: str) -> str:
+    """Conservative JS minifier: drops comments and indentation, keeps tokens.
+
+    It understands strings, template literals, regex literals, and both
+    comment styles, so it will not mangle URLs or regular expressions.
+    """
+    output = []
+    index = 0
+    length = len(source)
+    state = "code"
+    in_class = False
+
+    def regex_allowed() -> bool:
+        text = "".join(output).rstrip()
+        if not text:
+            return True
+        if text[-1] in "(,=:[!&|?{};":
+            return True
+        match = re.search(r"([A-Za-z_$][\w$]*)$", text)
+        return bool(
+            match
+            and match.group(1)
+            in {
+                "return", "typeof", "instanceof", "in", "of", "case", "delete",
+                "void", "new", "do", "else", "yield", "await",
+            }
+        )
+
+    while index < length:
+        char = source[index]
+        following = source[index + 1] if index + 1 < length else ""
+
+        if state == "code":
+            if char == "/" and following == "/":
+                state = "line_comment"
+                index += 2
+                continue
+            if char == "/" and following == "*":
+                state = "block_comment"
+                if output and output[-1] not in (" ", "\n"):
+                    output.append(" ")
+                index += 2
+                continue
+            if char in "'\"`":
+                state = {"'": "single", '"': "double", "`": "template"}[char]
+                output.append(char)
+                index += 1
+                continue
+            if char == "/" and regex_allowed():
+                state = "regex"
+                in_class = False
+                output.append(char)
+                index += 1
+                continue
+            if char == "\n":
+                output.append("\n")
+                index += 1
+                continue
+            if char in " \t\r":
+                cursor = index
+                while cursor < length and source[cursor] in " \t\r":
+                    cursor += 1
+                next_char = source[cursor] if cursor < length else ""
+                previous_char = output[-1] if output else ""
+                if previous_char in "{}(),;:" or next_char in "{}(),;:":
+                    index = cursor
+                    continue
+                if output and output[-1] not in (" ", "\n"):
+                    output.append(" ")
+                index = cursor
+                continue
+            output.append(char)
+            index += 1
+            continue
+
+        if state in ("single", "double", "template"):
+            output.append(char)
+            if char == "\\" and index + 1 < length:
+                output.append(source[index + 1])
+                index += 2
+                continue
+            quote = {"single": "'", "double": '"', "template": "`"}[state]
+            if char == quote:
+                state = "code"
+            index += 1
+            continue
+
+        if state == "regex":
+            output.append(char)
+            if char == "\\" and index + 1 < length:
+                output.append(source[index + 1])
+                index += 2
+                continue
+            if char == "[":
+                in_class = True
+            elif char == "]":
+                in_class = False
+            elif char == "/" and not in_class:
+                state = "code"
+                cursor = index + 1
+                while cursor < length and source[cursor].isalpha():
+                    output.append(source[cursor])
+                    cursor += 1
+                index = cursor
+                continue
+            index += 1
+            continue
+
+        if state == "line_comment":
+            if char == "\n":
+                state = "code"
+                output.append("\n")
+            index += 1
+            continue
+
+        if state == "block_comment":
+            if char == "*" and following == "/":
+                state = "code"
+                index += 2
+                continue
+            index += 1
+            continue
+
+    text = "".join(output)
+    lines = [line.strip() for line in text.split("\n")]
+    text = "\n".join(line for line in lines if line)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    return text.strip()
+
+
+def minify_site(out_dir: Path) -> None:
+    targets = [
+        ("index.html", minify_html),
+        ("assets/styles.css", minify_css),
+        ("assets/app.js", minify_js),
+    ]
+    print("Minifying site assets:")
+    for relative, minifier in targets:
+        path = out_dir / relative
+        before = path.stat().st_size
+        source = path.read_text(encoding="utf-8")
+        path.write_text(minifier(source), encoding="utf-8")
+        after = path.stat().st_size
+        percent = (1 - after / before) * 100 if before else 0
+        print(
+            f"  {relative}: {before / 1024:.1f} KB -> "
+            f"{after / 1024:.1f} KB (-{percent:.0f}%)"
+        )
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Build the static ROM catalogue site.")
     parser.add_argument("--csv", default="roms.csv", help="input CSV path")
     parser.add_argument("--out", default="site", help="output directory")
     parser.add_argument("--src", default=str(SRC_DIR), help="source assets directory")
+    parser.add_argument(
+        "--no-minify",
+        action="store_true",
+        help="skip the post-build minification of HTML, CSS and JS",
+    )
     parser.add_argument(
         "--base-url",
         default="https://damoreira.com.br/romsportugues-catalog",
@@ -505,6 +777,11 @@ def main(argv=None) -> int:
     ):
         shutil.copyfile(src_dir / name, out_dir / name)
     (out_dir / ".nojekyll").write_text("", encoding="utf-8")
+
+    if args.no_minify:
+        print("Skipping minification (--no-minify).")
+    else:
+        minify_site(out_dir)
 
     size = (out_dir / "index.html").stat().st_size
     print(
