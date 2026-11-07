@@ -13,6 +13,11 @@ on:
           - "8"
           - "12"
           - "16"
+      force:
+        description: "Scrape even when the public count matches the local CSV"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -29,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
-      changed: ${{ steps.compare.outputs.changed }}
+      changed: ${{ steps.compare.outputs.changed || 'false' }}
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -41,25 +46,41 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Check for new data
+        id: precheck
+        run: |
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "new_data=true" >> "$GITHUB_OUTPUT"
+            echo "### Forced refresh" >> "$GITHUB_STEP_SUMMARY"
+            echo "Force input enabled: skipping the public count check."
+          else
+            python3 check_catalogue.py --csv roms.csv
+          fi
+
       - name: Verify headless Chrome
+        if: steps.precheck.outputs.new_data == 'true'
         run: |
           python3 -c "from make_og_image import find_chrome; path = find_chrome(); assert path, 'Chrome/Chromium not found'; print('Chrome:', path)"
 
       - name: Install card font
+        if: steps.precheck.outputs.new_data == 'true'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq fonts-liberation
 
       - name: Save previous catalogue
+        if: steps.precheck.outputs.new_data == 'true'
         run: cp roms.csv "$RUNNER_TEMP/previous-roms.csv"
 
       - name: Scrape romsportugues.com
+        if: steps.precheck.outputs.new_data == 'true'
         run: >-
           python3 scrape_roms.py
           --workers ${{ inputs.workers }}
           --output roms.csv
 
       - name: Compare catalogue
+        if: steps.precheck.outputs.new_data == 'true'
         id: compare
         run: |
           if [ ! -f "$RUNNER_TEMP/previous-roms.csv" ]; then

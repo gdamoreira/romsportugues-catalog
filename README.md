@@ -42,8 +42,8 @@ The repository turns the scraped catalogue into a fast, dependency-free
 static website. Every ROM is displayed as a card with its cover, console,
 year, developer, translator, players, genres, and download links.
 
-- **1,779 entries** across **16 consoles** (1983–2025)
-- **3,953 download links** mirrored from the original pages
+- **1,780 entries** across **16 consoles** (1983–2025)
+- **3,954 download links** mirrored from the original pages
 - Instant client-side **search**, console/genre **filters**, and **sorting**
 - Responsive **dark/light theme**
 - Rich **Open Graph / Twitter link previews** with a 1200×630 card
@@ -60,6 +60,7 @@ Actions. The social card is rendered with headless Chrome.
 ├── .github/workflows/pages.yml             # build + deploy to GitHub Pages
 ├── .github/workflows/refresh-catalog.yml   # manual scrape + rebuild + deploy
 ├── build_site.py                 # roms.csv -> site/
+├── check_catalogue.py            # preflight: todos-jogos count vs roms.csv
 ├── make_og_image.py              # roms.csv -> 1200x630 social card
 ├── scrape_roms.py                # romsportugues.com -> roms.csv
 ├── roms.csv                      # mirrored catalogue data (UTF-8 BOM, LF)
@@ -113,7 +114,9 @@ never runs on a schedule or on push.
 1. Open **Actions → Refresh catalogue → Run workflow**.
 2. Pick the number of parallel scraping workers.
 3. The workflow will:
-   - scrape the full catalogue,
+   - count the public `todos-jogos` list and compare it with `roms.csv`; if
+     the counts match, stop immediately with **No new data** and scrape nothing,
+   - otherwise scrape the full catalogue,
    - compare the new `roms.csv` **byte-for-byte** with the previous one and
      stop with **No new data** if nothing changed (build and deploy are skipped),
    - validate the CSV (fails on any failed ROM page or fewer than 1,000 rows),
@@ -122,7 +125,11 @@ never runs on a schedule or on push.
    - commit `roms.csv` and `site_src/og-image.png` when they change,
    - deploy the freshly built site to GitHub Pages.
 
-The comparison is byte-for-byte, so `scrape_roms.py` writes LF line endings
+The preflight check mirrors the browser expression
+`document.querySelectorAll('.letter-section li').length`. Use the **force**
+input to bypass it when metadata changed without changing the ROM count.
+
+The byte comparison is exact, so `scrape_roms.py` writes LF line endings
 (matching `.gitattributes`) instead of the platform default CRLF.
 
 It uses the built-in `GITHUB_TOKEN` (`contents: write`, `pages: write`,
@@ -139,7 +146,10 @@ The scraper is polite by default: 8 workers, a global request delay, retries
 on 429/5xx, and per-ROM error reporting.
 
 ```bash
-# Re-scrape the full catalogue (112 listing pages, ~1,779 ROMs)
+# Fast preflight: public list count vs local CSV
+python3 check_catalogue.py --csv roms.csv
+
+# Re-scrape the full catalogue (112 listing pages, ~1,780 ROMs)
 python3 scrape_roms.py --workers 8 -o roms.csv
 
 # Rebuild the site
