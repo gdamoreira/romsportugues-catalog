@@ -45,6 +45,7 @@ year, developer, translator, players, genres, and download links.
 - **3,953 download links** mirrored from the original pages
 - Instant client-side **search**, console/genre **filters**, and **sorting**
 - Responsive **dark/light theme**
+- Rich **Open Graph / Twitter link previews** with a 1200×630 card
 - No backend, no database, no tracking, no external fonts or CDNs
 - Works without JavaScript: every card is pre-rendered in the HTML
 
@@ -62,7 +63,13 @@ Actions.
 ├── site_src/                     # source assets used by the generator
 │   ├── app.js                    # search, filters, sort, theme
 │   ├── styles.css                # layout and dark/light theme
+│   ├── og-image.jpg              # 1200x630 social preview card
 │   ├── favicon.svg
+│   ├── favicon-32.png
+│   ├── apple-touch-icon.png
+│   ├── icon-192.png / icon-512.png
+│   ├── mstile-150.png
+│   ├── site.webmanifest
 │   └── robots.txt
 ├── LICENSE                       # MIT (code only)
 └── README.md
@@ -106,6 +113,11 @@ python3 scrape_roms.py --limit 12 -o test.csv
 python3 scrape_roms.py --start-page 5 --end-page 5 -o page5.csv
 ```
 
+The 1200×630 social card (`site_src/og-image.jpg`) is a static asset. If the
+catalogue totals change, replace it with an updated 1200×630 JPEG/PNG. The
+icons in `site_src/` can be regenerated from the same gradient/RP brand.
+
+
 ### CSV schema
 
 | Column | Meaning |
@@ -138,6 +150,15 @@ The site will be published at:
 
 All asset paths are relative, so the site works correctly under the
 `/romsportugues-catalog/` base path.
+
+The canonical URL, Open Graph `og:url`, and the absolute social image URL are
+generated from `--base-url` (default:
+`https://damoreira.com.br/romsportugues-catalog`). If you ever change domains,
+update that value in the workflow and rebuild:
+
+```bash
+python3 build_site.py --base-url https://your-domain.example/catalogue
+```
 
 ## Data ownership & takedown
 

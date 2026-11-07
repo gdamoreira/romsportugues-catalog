@@ -28,7 +28,11 @@ jobs:
           python-version: "3.12"
 
       - name: Build site from CSV
-        run: python3 build_site.py --csv roms.csv --out site
+        run: >-
+          python3 build_site.py
+          --csv roms.csv
+          --out site
+          --base-url https://damoreira.com.br/romsportugues-catalog
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

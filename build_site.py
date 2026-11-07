@@ -8,15 +8,19 @@ Outputs a ready-to-publish folder:
       index.html          all cards pre-rendered (works without JS)
       assets/styles.css
       assets/app.js       search, filters, sort, theme toggle
+      assets/og-image.jpg 1200x630 social preview card
+      assets/icon-*.png   manifest icons
       favicon.svg
+      apple-touch-icon.png
+      site.webmanifest
       robots.txt
       .nojekyll
-      README.md           deployment notes
 
 The generator only needs the Python standard library.
 
     python3 build_site.py
     python3 build_site.py --csv roms.csv --out site
+    python3 build_site.py --base-url https://example.com/catalogue
 """
 
 from __future__ import annotations
@@ -24,6 +28,7 @@ from __future__ import annotations
 import argparse
 import csv
 import html
+import json
 import os
 import re
 import shutil
@@ -219,7 +224,14 @@ SPRITE = """<svg class="svg-sprite" aria-hidden="true" focusable="false">
 </svg>"""
 
 
-def build_page(rows: list, console_options: str, genre_options: str, console_counts, genre_counts) -> str:
+def build_page(
+    rows: list,
+    console_options: str,
+    genre_options: str,
+    console_counts,
+    genre_counts,
+    base_url: str,
+) -> str:
     total = len(rows)
     years = [int(row["dados_ano"]) for row in rows if clean(row.get("dados_ano")).isdigit()]
     year_min, year_max = (min(years), max(years)) if years else ("", "")
@@ -228,12 +240,60 @@ def build_page(rows: list, console_options: str, genre_options: str, console_cou
     generated = date.today().strftime("%d/%m/%Y")
     cards = "\n".join(build_card(row, index) for index, row in enumerate(rows))
 
+    base_url = (base_url or "").rstrip("/")
+    page_url = f"{base_url}/"
+    image_url = f"{base_url}/assets/og-image.jpg"
+
     title = f"ROMs em Português — Catálogo de {br_number(total)} ROMs traduzidas"
     description = (
         f"Catálogo completo com {br_number(total)} ROMs traduzidas para português, "
-        f"cobrindo {console_total} consoles de {year_min} a {year_max}. "
-        "Capas, dados do jogo e links de download."
+        f"de {console_total} consoles entre {year_min} e {year_max}. "
+        "Veja capas, dados do jogo e links de download."
     )
+    image_alt = (
+        f"Card do catálogo ROMs em Português com {br_number(total)} ROMs traduzidas "
+        f"para {console_total} consoles, de {year_min} a {year_max}."
+    )
+
+    schema = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "WebSite",
+                "@id": f"{page_url}#website",
+                "url": page_url,
+                "name": "ROMs em Português",
+                "description": description,
+                "inLanguage": "pt-BR",
+            },
+            {
+                "@type": "CollectionPage",
+                "@id": f"{page_url}#webpage",
+                "url": page_url,
+                "name": title,
+                "description": description,
+                "isPartOf": {"@id": f"{page_url}#website"},
+                "inLanguage": "pt-BR",
+                "primaryImageOfPage": {
+                    "@type": "ImageObject",
+                    "@id": f"{page_url}#primaryimage",
+                    "url": image_url,
+                    "contentUrl": image_url,
+                    "width": 1200,
+                    "height": 630,
+                    "caption": "Catálogo ROMs em Português",
+                },
+                "mainEntity": {
+                    "@type": "ItemList",
+                    "name": "ROMs traduzidas em português",
+                    "numberOfItems": total,
+                },
+            },
+        ],
+    }
+    json_ld = json.dumps(
+        schema, ensure_ascii=False, separators=(",", ":")
+    ).replace("</", "<\\/")
 
     return f"""<!doctype html>
 <html lang="pt-BR">
@@ -242,12 +302,39 @@ def build_page(rows: list, console_options: str, genre_options: str, console_cou
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(description)}">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<link rel="canonical" href="{esc(page_url)}">
 <meta name="theme-color" content="#080b10">
+<meta name="application-name" content="ROMs em Português">
+<meta name="author" content="gdamoreira">
+
+<meta property="og:locale" content="pt_BR">
+<meta property="og:site_name" content="ROMs em Português">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{esc(page_url)}">
 <meta property="og:title" content="{esc(title)}">
 <meta property="og:description" content="{esc(description)}">
-<meta property="og:type" content="website">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="{esc(image_url)}">
+<meta property="og:image:secure_url" content="{esc(image_url)}">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{esc(image_alt)}">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{esc(title)}">
+<meta name="twitter:description" content="{esc(description)}">
+<meta name="twitter:image" content="{esc(image_url)}">
+<meta name="twitter:image:alt" content="{esc(image_alt)}">
+
+<link rel="image_src" href="{esc(image_url)}">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="msapplication-TileColor" content="#080b10">
+<meta name="msapplication-TileImage" content="{esc(base_url)}/assets/mstile-150.png">
+<script type="application/ld+json">{json_ld}</script>
 {THEME_SCRIPT}
 <link rel="stylesheet" href="assets/styles.css">
 </head>
@@ -371,6 +458,11 @@ def main(argv=None) -> int:
     parser.add_argument("--csv", default="roms.csv", help="input CSV path")
     parser.add_argument("--out", default="site", help="output directory")
     parser.add_argument("--src", default=str(SRC_DIR), help="source assets directory")
+    parser.add_argument(
+        "--base-url",
+        default="https://damoreira.com.br/romsportugues-catalog",
+        help="public URL used for canonical, Open Graph and Twitter tags",
+    )
     args = parser.parse_args(argv)
 
     csv_path = Path(args.csv)
@@ -383,14 +475,34 @@ def main(argv=None) -> int:
 
     rows = load_rows(csv_path)
     console_options, genre_options, console_counts, genre_counts = build_options(rows)
-    page = build_page(rows, console_options, genre_options, console_counts, genre_counts)
+    page = build_page(
+        rows,
+        console_options,
+        genre_options,
+        console_counts,
+        genre_counts,
+        args.base_url,
+    )
 
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "assets").mkdir(parents=True, exist_ok=True)
     (out_dir / "index.html").write_text(page, encoding="utf-8")
-    for name in ("styles.css", "app.js"):
+    for name in (
+        "styles.css",
+        "app.js",
+        "og-image.jpg",
+        "favicon-32.png",
+        "icon-192.png",
+        "icon-512.png",
+        "mstile-150.png",
+    ):
         shutil.copyfile(src_dir / name, out_dir / "assets" / name)
-    for name in ("favicon.svg", "robots.txt"):
+    for name in (
+        "favicon.svg",
+        "apple-touch-icon.png",
+        "site.webmanifest",
+        "robots.txt",
+    ):
         shutil.copyfile(src_dir / name, out_dir / name)
     (out_dir / ".nojekyll").write_text("", encoding="utf-8")
 
