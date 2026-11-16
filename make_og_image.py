@@ -453,7 +453,7 @@ def parse_args(argv=None):
     parser.add_argument("--chrome", default=None, help="path to Chrome/Chromium")
     parser.add_argument(
         "--domain",
-        default="damoreira.com.br/romsportugues-catalog",
+        default="damoreira.com/romsportugues-catalog",
         help="domain shown at the bottom of the card",
     )
     parser.add_argument(
