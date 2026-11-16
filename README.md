@@ -1,11 +1,11 @@
 # romsportugues-catalog
 
 [![Deploy to GitHub Pages](https://github.com/gdamoreira/romsportugues-catalog/actions/workflows/pages.yml/badge.svg)](https://github.com/gdamoreira/romsportugues-catalog/actions/workflows/pages.yml)
-[![Live catalogue](https://img.shields.io/badge/live-catalogue-7c5cff)](https://damoreira.com.br/romsportugues-catalog/)
+[![Live catalogue](https://img.shields.io/badge/live-catalogue-7c5cff)](https://damoreira.com/romsportugues-catalog/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <p align="center">
-  <a href="https://damoreira.com.br/romsportugues-catalog/">
+  <a href="https://damoreira.com/romsportugues-catalog/">
     <img src="site_src/og-image.png" alt="Prévia do catálogo ROMs em Português" width="100%">
   </a>
 </p>
@@ -13,7 +13,7 @@
 A static, read-only catalogue of the Portuguese-translated ROMs indexed by
 [romsportugues.com](https://romsportugues.com/).
 
-**Live site:** <https://damoreira.com.br/romsportugues-catalog/>
+**Live site:** <https://damoreira.com/romsportugues-catalog/>
 
 ---
 
@@ -225,7 +225,7 @@ enable **Settings → Pages → Source: GitHub Actions** once.
 
 The site is published at:
 
-**<https://damoreira.com.br/romsportugues-catalog/>**
+**<https://damoreira.com/romsportugues-catalog/>**
 
 GitHub Pages fallback: <https://gdamoreira.github.io/romsportugues-catalog/>
 
@@ -234,7 +234,7 @@ All asset paths are relative, so the site works correctly under the
 
 The canonical URL, Open Graph `og:url`, and the absolute social image URL are
 generated from `--base-url` (default:
-`https://damoreira.com.br/romsportugues-catalog`). If you ever change domains,
+`https://damoreira.com/romsportugues-catalog`). If you ever change domains,
 update that value in the workflow and rebuild:
 
 ```bash
