@@ -732,7 +732,7 @@ def main(argv=None) -> int:
     )
     parser.add_argument(
         "--base-url",
-        default="https://damoreira.com.br/romsportugues-catalog",
+        default="https://damoreira.com/romsportugues-catalog",
         help="public URL used for canonical, Open Graph and Twitter tags",
     )
     args = parser.parse_args(argv)
